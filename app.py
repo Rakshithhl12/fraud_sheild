@@ -275,7 +275,6 @@ div[data-testid="stDataFrame"]{border:1px solid #1c2a3a;border-radius:10px}
 
 /* ── Global text overrides — force all remaining text white ── */
 p, span, div, label, li, td, th, small, h1, h2, h3, h4, h5, h6 {color:#ffffff}
-.stSelectbox div[data-baseweb] {color:#ffffff!important}
 .stSlider label {color:#ffffff!important}
 .stSlider [data-testid="stWidgetLabel"] {color:#ffffff!important}
 [data-testid="stWidgetLabel"] {color:#ffffff!important}
@@ -283,27 +282,50 @@ p, span, div, label, li, td, th, small, h1, h2, h3, h4, h5, h6 {color:#ffffff}
 [data-testid="stMarkdownContainer"] li {color:#ffffff!important}
 .stRadio [data-testid="stWidgetLabel"] {color:#ffffff!important}
 .stNumberInput label {color:#ffffff!important}
-section[data-testid="stSidebar"] * {color:#ffffff!important}
+/* Sidebar — white everything EXCEPT selectbox dropdown elements */
+section[data-testid="stSidebar"] *:not([data-baseweb="select"] *):not([data-baseweb="popover"] *):not([data-baseweb="menu"] *) {color:#ffffff!important}
 section[data-testid="stSidebar"] .sb-name {color:#00e5ff!important}
 section[data-testid="stSidebar"] .sb-nav-lbl {color:#ffffff!important}
 section[data-testid="stSidebar"] .stRadio label:hover {color:#00e5ff!important}
 
-/* ── All selectbox dropdowns (sidebar + main) — black text on white bg ── */
+/* ── Dropdown black text — all screen sizes, sidebar + main ────────────────
+   Declared last so they win over every white rule above regardless of device
+   ────────────────────────────────────────────────────────────────────────── */
+[data-baseweb="select"] *,
+[data-baseweb="select"] div,
+[data-baseweb="select"] span,
+[data-baseweb="select"] input,
+[data-baseweb="select"] div[class*="ValueContainer"],
 [data-baseweb="select"] div[class*="ValueContainer"] *,
 [data-baseweb="select"] div[class*="singleValue"],
 [data-baseweb="select"] div[class*="placeholder"],
+.stSelectbox [data-baseweb="select"] div,
 .stSelectbox [data-baseweb="select"] span,
-.stSelectbox [data-baseweb="select"] div {color:#000000!important}
-[data-baseweb="popover"] {background:#ffffff!important}
-[data-baseweb="popover"] * {color:#000000!important}
-[data-baseweb="menu"] {background:#ffffff!important}
-[data-baseweb="menu"] * {color:#000000!important}
-[data-baseweb="menu"] [aria-selected="true"] {background:#e8f4ff!important}
-[data-baseweb="menu"] [role="option"]:hover {background:#f0f0f0!important}
+section[data-testid="stSidebar"] [data-baseweb="select"] *,
+section[data-testid="stSidebar"] [data-baseweb="select"] div,
+section[data-testid="stSidebar"] [data-baseweb="select"] span,
 section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="ValueContainer"] *,
 section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="singleValue"],
-section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="placeholder"],
-section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!important}
+section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="placeholder"] {color:#000000!important}
+[data-baseweb="popover"],
+[data-baseweb="popover"] *,
+[data-baseweb="popover"] div,
+[data-baseweb="popover"] span,
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] ul li span {background-color:#ffffff;color:#000000!important}
+[data-baseweb="menu"],
+[data-baseweb="menu"] *,
+[data-baseweb="menu"] div,
+[data-baseweb="menu"] span,
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] [role="option"],
+[data-baseweb="menu"] [role="option"] * {background-color:#ffffff;color:#000000!important}
+[data-baseweb="menu"] [aria-selected="true"],
+[data-baseweb="menu"] [aria-selected="true"] * {background-color:#e8f4ff!important;color:#000000!important}
+[data-baseweb="menu"] [role="option"]:hover,
+[data-baseweb="menu"] [role="option"]:hover *,
+[data-baseweb="menu"] [role="option"]:active,
+[data-baseweb="menu"] [role="option"]:active * {background-color:#f0f0f0!important;color:#000000!important}
 
 /* ── Responsive ── */
 @media(max-width:640px){
@@ -311,43 +333,9 @@ section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!imp
   .hero-div{display:none}
   [data-testid="column"]{min-width:100%!important}
   .cmp-grid{grid-template-columns:1fr}
-  /* Dropdown black text — mobile */
-  [data-baseweb="select"] div[class*="ValueContainer"] *,
-  [data-baseweb="select"] div[class*="singleValue"],
-  [data-baseweb="select"] div[class*="placeholder"],
-  .stSelectbox [data-baseweb="select"] span,
-  .stSelectbox [data-baseweb="select"] div {color:#000000!important}
-  [data-baseweb="popover"] {background:#ffffff!important}
-  [data-baseweb="popover"] * {color:#000000!important}
-  [data-baseweb="menu"] {background:#ffffff!important}
-  [data-baseweb="menu"] * {color:#000000!important}
-  [data-baseweb="menu"] [aria-selected="true"] {background:#e8f4ff!important}
-  [data-baseweb="menu"] [role="option"]:hover,
-  [data-baseweb="menu"] [role="option"]:active {background:#f0f0f0!important}
-  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="ValueContainer"] *,
-  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="singleValue"],
-  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="placeholder"],
-  section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!important}
 }
 @media(min-width:641px) and (max-width:1024px){
   .cmp-grid{grid-template-columns:repeat(2,1fr)}
-  /* Dropdown black text — tablet */
-  [data-baseweb="select"] div[class*="ValueContainer"] *,
-  [data-baseweb="select"] div[class*="singleValue"],
-  [data-baseweb="select"] div[class*="placeholder"],
-  .stSelectbox [data-baseweb="select"] span,
-  .stSelectbox [data-baseweb="select"] div {color:#000000!important}
-  [data-baseweb="popover"] {background:#ffffff!important}
-  [data-baseweb="popover"] * {color:#000000!important}
-  [data-baseweb="menu"] {background:#ffffff!important}
-  [data-baseweb="menu"] * {color:#000000!important}
-  [data-baseweb="menu"] [aria-selected="true"] {background:#e8f4ff!important}
-  [data-baseweb="menu"] [role="option"]:hover,
-  [data-baseweb="menu"] [role="option"]:active {background:#f0f0f0!important}
-  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="ValueContainer"] *,
-  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="singleValue"],
-  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="placeholder"],
-  section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!important}
 }
 </style>
 """, unsafe_allow_html=True)
