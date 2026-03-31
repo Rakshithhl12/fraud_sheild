@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.colors import LinearSegmentedColormap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -17,539 +20,821 @@ from imblearn.over_sampling import SMOTE, BorderlineSMOTE, SVMSMOTE
 import warnings
 warnings.filterwarnings("ignore")
 
-# ─────────────────────────────────────────────
-# Page Config
-# ─────────────────────────────────────────────
+# ── Matplotlib global palette ────────────────────────────────────────────────
+BG     = "#080c14"
+PANEL  = "#0e1420"
+BORDER = "#1c2a3a"
+CYAN   = "#00e5ff"
+GREEN  = "#00ff9d"
+RED    = "#ff3366"
+AMBER  = "#ffb300"
+PURPLE = "#b388ff"
+TEXT   = "#ffffff"
+SUB    = "#ffffff"
+
+plt.rcParams.update({
+    'figure.facecolor': BG, 'axes.facecolor': PANEL,
+    'axes.edgecolor': BORDER, 'axes.labelcolor': '#ffffff',
+    'axes.titlecolor': '#ffffff', 'text.color': '#ffffff',
+    'xtick.color': '#ffffff', 'ytick.color': '#ffffff',
+    'grid.color': BORDER, 'grid.linestyle': '--', 'grid.alpha': 0.35,
+    'legend.facecolor': PANEL, 'legend.edgecolor': BORDER, 'legend.fontsize': 8,
+    'font.family': ['monospace'], 'font.size': 9,
+    'axes.spines.top': False, 'axes.spines.right': False,
+})
+
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Fraud Shield | Credit Card Fraud Detection",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="FraudShield · ML Detection",
+    page_icon="🛡️", layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# ─────────────────────────────────────────────
-# Custom CSS
-# ─────────────────────────────────────────────
-st.markdown("""
+# ── CSS ───────────────────────────────────────────────────────────────────────
+st.markdown(r"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap');
-html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
-.main { background-color: #0a0e1a; }
-.stApp { background: linear-gradient(135deg, #0a0e1a 0%, #0d1530 50%, #0a1628 100%); }
-h1, h2, h3 { font-family: 'Space Mono', monospace; }
-.hero-banner {
-    background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
-    border: 1px solid #00d4ff33; border-radius: 16px;
-    padding: 2.5rem 2rem; margin-bottom: 2rem;
-    text-align: center; box-shadow: 0 0 40px #00d4ff22;
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,[class*="css"]{font-family:'Exo 2',sans-serif;color:#ffffff}
+.stApp{
+  background:#080c14;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%,rgba(0,229,255,.07) 0%,transparent 70%),
+    radial-gradient(ellipse 60% 50% at 90% 90%,rgba(0,255,157,.05) 0%,transparent 60%);
 }
-.hero-banner h1 { color: #00d4ff; font-size: 2.4rem; letter-spacing: 2px; margin: 0; text-shadow: 0 0 20px #00d4ff88; }
-.hero-banner p  { color: #a0b4c8; font-size: 1rem; margin-top: 0.5rem; }
-.metric-card {
-    background: linear-gradient(145deg, #111827, #1a2332);
-    border: 1px solid #1e3a5f; border-radius: 12px;
-    padding: 1.2rem 1.5rem; text-align: center;
-    box-shadow: 0 4px 20px rgba(0,212,255,0.08); transition: transform 0.2s;
+
+/* ── Sidebar ── */
+section[data-testid="stSidebar"]{
+  background:linear-gradient(180deg,#07111d 0%,#090f1a 100%);
+  border-right:1px solid #1c2a3a;
 }
-.metric-card:hover { transform: translateY(-3px); }
-.metric-card .label { color: #6b8cae; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; }
-.metric-card .value { color: #00d4ff; font-size: 2rem; font-weight: 700; font-family: 'Space Mono', monospace; }
-.smote-card {
-    background: linear-gradient(145deg, #0d1f0d, #1a2f1a);
-    border: 1px solid #00cc6644; border-radius: 12px;
-    padding: 1.2rem 1.5rem; text-align: center;
-    box-shadow: 0 4px 20px rgba(0,204,102,0.10);
+section[data-testid="stSidebar"] .stRadio label{color:#ffffff!important;font-size:.82rem!important;transition:color .2s}
+section[data-testid="stSidebar"] .stRadio label:hover{color:#00e5ff!important}
+section[data-testid="stSidebar"] .stSelectbox label{color:#ffffff!important;font-size:.78rem!important}
+
+.sb-brand{
+  background:linear-gradient(135deg,#0a1929,#0d2137);
+  border-bottom:1px solid #1c2a3a;
+  padding:1.4rem 1.2rem 1.2rem;
+  margin-bottom:.5rem;
 }
-.smote-card .label { color: #5a9e6b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; }
-.smote-card .value { color: #00ff88; font-size: 2rem; font-weight: 700; font-family: 'Space Mono', monospace; }
-.info-box {
-    background: linear-gradient(145deg, #0d1a2e, #0f2040);
-    border-left: 4px solid #00d4ff; border-radius: 8px;
-    padding: 1rem 1.2rem; margin: 1rem 0;
-    color: #a0b4c8; font-size: 0.9rem;
+.sb-icon{font-size:2rem;line-height:1}
+.sb-name{
+  font-family:'Share Tech Mono',monospace;font-size:1.25rem;
+  color:#00e5ff;letter-spacing:3px;
+  text-shadow:0 0 16px rgba(0,229,255,.5);margin-top:.3rem;
 }
-.info-box strong { color: #00d4ff; }
-.fraud-alert {
-    background: linear-gradient(135deg, #3d0000, #5a0000);
-    border: 2px solid #ff4444; border-radius: 12px; padding: 1.5rem;
-    text-align: center; box-shadow: 0 0 30px #ff444444; animation: pulse 2s infinite;
+.sb-sub{font-size:.65rem;color:#ffffff;letter-spacing:1px;margin-top:.1rem}
+.sb-nav-lbl{font-size:.6rem;color:#ffffff;text-transform:uppercase;letter-spacing:2px;padding:0 1rem;margin:.5rem 0 .3rem}
+.sb-footer{padding:0 .5rem;font-size:.62rem;color:#ffffff;line-height:2}
+
+/* ── Hero ── */
+.hero{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#071020 0%,#0a1830 50%,#071525 100%);
+  border:1px solid #1c2a3a;border-radius:20px;
+  padding:clamp(1.5rem,4vw,2.8rem) clamp(1.2rem,3vw,2.5rem);
+  margin-bottom:1.5rem;
+  box-shadow:0 0 60px rgba(0,229,255,.06),inset 0 1px 0 rgba(0,229,255,.1);
 }
-@keyframes pulse { 0%,100%{box-shadow:0 0 20px #ff444455;} 50%{box-shadow:0 0 40px #ff4444aa;} }
-.legit-badge {
-    background: linear-gradient(135deg, #003d1a, #005522);
-    border: 2px solid #00cc66; border-radius: 12px; padding: 1.5rem;
-    text-align: center; box-shadow: 0 0 30px #00cc6633;
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:
+    repeating-linear-gradient(0deg,transparent,transparent 24px,rgba(0,229,255,.015) 24px,rgba(0,229,255,.015) 25px),
+    repeating-linear-gradient(90deg,transparent,transparent 24px,rgba(0,229,255,.015) 24px,rgba(0,229,255,.015) 25px);
+  border-radius:20px;pointer-events:none;
 }
-.fraud-alert h2, .legit-badge h2 { font-family: 'Space Mono', monospace; font-size: 1.5rem; margin: 0; }
-.fraud-alert h2 { color: #ff6666; }
-.legit-badge h2 { color: #00ff88; }
-.section-title {
-    color: #00d4ff; font-family: 'Space Mono', monospace;
-    font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase;
-    border-bottom: 1px solid #1e3a5f; padding-bottom: 0.5rem; margin-bottom: 1rem;
+.hero-inner{position:relative;z-index:1;text-align:center}
+.hero-badge{
+  display:inline-block;
+  background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.25);
+  border-radius:100px;padding:.25rem 1rem;
+  font-size:.68rem;color:#00e5ff;letter-spacing:3px;text-transform:uppercase;
+  font-family:'Share Tech Mono',monospace;margin-bottom:.8rem;
 }
-.compare-better { color: #00ff88; font-weight: 700; }
-.compare-worse  { color: #ff6666; font-weight: 700; }
+.hero h1{
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(1.6rem,6vw,3rem);
+  color:#00e5ff;letter-spacing:4px;
+  text-shadow:0 0 30px rgba(0,229,255,.4),0 0 60px rgba(0,229,255,.15);
+  line-height:1.1;
+}
+.hero-sub{color:#ffffff;font-size:clamp(.75rem,2vw,.9rem);margin-top:.5rem;letter-spacing:1px}
+.hero-stats{display:flex;gap:clamp(.8rem,3vw,2rem);justify-content:center;flex-wrap:wrap;margin-top:1.5rem}
+.hero-stat{text-align:center}
+.hero-stat-val{
+  font-family:'Share Tech Mono',monospace;font-size:clamp(1.1rem,3.5vw,1.6rem);
+  color:#00ff9d;text-shadow:0 0 12px rgba(0,255,157,.4);
+}
+.hero-stat-lbl{font-size:.63rem;color:#ffffff;text-transform:uppercase;letter-spacing:1.5px;margin-top:.1rem}
+.hero-div{width:1px;background:#1c2a3a;height:40px;align-self:center}
+
+/* ── Metric card ── */
+.mcard{
+  background:linear-gradient(145deg,#0c1520,#0f1d2e);
+  border:1px solid #1c2a3a;border-radius:14px;
+  padding:clamp(.9rem,2.5vw,1.3rem) clamp(.8rem,2vw,1.2rem);
+  position:relative;overflow:hidden;
+  transition:transform .25s,box-shadow .25s;
+  margin-bottom:.5rem;
+}
+.mcard::after{
+  content:'';position:absolute;top:0;left:0;right:0;
+  height:2px;border-radius:14px 14px 0 0;
+}
+.mcard.cyan::after {background:linear-gradient(90deg,transparent,#00e5ff,transparent)}
+.mcard.green::after{background:linear-gradient(90deg,transparent,#00ff9d,transparent)}
+.mcard.red::after  {background:linear-gradient(90deg,transparent,#ff3366,transparent)}
+.mcard.amber::after{background:linear-gradient(90deg,transparent,#ffb300,transparent)}
+.mcard:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(0,229,255,.08)}
+.mcard-icon{font-size:1.2rem;margin-bottom:.35rem;opacity:.85}
+.mcard-lbl{font-size:.62rem;color:#ffffff;text-transform:uppercase;letter-spacing:2px}
+.mcard-val{
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(1.2rem,3.5vw,1.8rem);font-weight:700;margin-top:.2rem;line-height:1;
+}
+.mcard.cyan  .mcard-val{color:#00e5ff;text-shadow:0 0 12px rgba(0,229,255,.35)}
+.mcard.green .mcard-val{color:#00ff9d;text-shadow:0 0 12px rgba(0,255,157,.35)}
+.mcard.red   .mcard-val{color:#ff3366;text-shadow:0 0 12px rgba(255,51,102,.35)}
+.mcard.amber .mcard-val{color:#ffb300;text-shadow:0 0 12px rgba(255,179,0,.35)}
+
+/* ── Section header ── */
+.sec-hdr{display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,#1c2a3a,transparent)}
+.sec-txt{
+  font-family:'Share Tech Mono',monospace;font-size:.68rem;
+  color:#00e5ff;text-transform:uppercase;letter-spacing:3px;white-space:nowrap;
+}
+
+/* ── Chart panel ── */
+.cpanel{
+  background:linear-gradient(145deg,#0c1520,#0f1d2e);
+  border:1px solid #1c2a3a;border-radius:14px;
+  padding:clamp(.8rem,2vw,1.2rem);margin-bottom:1rem;
+  transition:box-shadow .25s;
+}
+.cpanel:hover{box-shadow:0 4px 24px rgba(0,229,255,.06)}
+
+/* ── Info box ── */
+.info-box{
+  background:linear-gradient(145deg,#071525,#0a1e35);
+  border-left:3px solid #00e5ff;border-radius:0 10px 10px 0;
+  padding:clamp(.8rem,2vw,1.1rem) clamp(.9rem,2.5vw,1.3rem);
+  margin:1rem 0;font-size:clamp(.78rem,2vw,.88rem);color:#ffffff;line-height:1.6;
+}
+.info-box strong{color:#00e5ff}
+.info-box em{color:#ffffff}
+
+/* ── Page title ── */
+.page-title{
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(1.1rem,4vw,1.6rem);letter-spacing:3px;
+  color:#ffffff;
+  margin-bottom:1.2rem;padding-bottom:.7rem;
+  border-bottom:1px solid #1c2a3a;
+  display:flex;align-items:center;gap:.6rem;
+}
+
+/* ── SMOTE cards ── */
+.smote-c{
+  background:linear-gradient(145deg,#091a0f,#0d2217);
+  border:1px solid rgba(0,255,157,.18);border-radius:12px;
+  padding:clamp(.8rem,2vw,1.1rem);text-align:center;margin-bottom:.5rem;
+}
+.smote-c-lbl{font-size:.62rem;color:#ffffff;text-transform:uppercase;letter-spacing:2px}
+.smote-c-val{
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(1.2rem,3.5vw,1.8rem);
+  color:#00ff9d;text-shadow:0 0 10px rgba(0,255,157,.35);margin-top:.2rem;
+}
+
+/* ── Variant grid ── */
+.var-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:.75rem;margin-top:.5rem}
+.var-card{background:linear-gradient(145deg,#0c1520,#0f1d2e);border-radius:12px;padding:clamp(.8rem,2vw,1rem)}
+.var-name{font-family:'Share Tech Mono',monospace;font-size:.76rem;font-weight:700;margin-bottom:.45rem}
+.var-desc{font-size:.78rem;color:#ffffff;line-height:1.5}
+
+/* ── Compare grid ── */
+.cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:.75rem;margin-bottom:1.2rem}
+.cmp-card{
+  background:linear-gradient(145deg,#0c1520,#0f1d2e);
+  border:1px solid #1c2a3a;border-radius:12px;
+  padding:clamp(.9rem,2vw,1.1rem);text-align:center;
+}
+.cmp-lbl{font-size:.62rem;color:#ffffff;text-transform:uppercase;letter-spacing:2px;margin-bottom:.6rem}
+.cmp-row{display:flex;align-items:center;justify-content:space-around;gap:.4rem;flex-wrap:wrap}
+.cmp-val{font-family:'Share Tech Mono',monospace;font-size:1.2rem}
+.cmp-arrow{color:#ffffff;font-size:1rem}
+.cmp-delta{font-size:.7rem;font-family:'Share Tech Mono',monospace;margin-top:.5rem}
+.cmp-sublbl{font-size:.62rem;color:#ffffff;margin-bottom:.15rem}
+
+/* ── Predict ── */
+.pred-wrap{
+  background:linear-gradient(145deg,#0c1520,#0f1d2e);
+  border:1px solid #1c2a3a;border-radius:16px;
+  padding:clamp(1rem,3vw,1.5rem);margin-bottom:1rem;
+}
+.fraud-alert{
+  background:linear-gradient(135deg,#1a0010,#2a0018);
+  border:1px solid rgba(255,51,102,.4);border-radius:16px;
+  padding:clamp(1.2rem,3vw,2rem);text-align:center;
+  box-shadow:0 0 40px rgba(255,51,102,.12),inset 0 1px 0 rgba(255,51,102,.15);
+  animation:pulse-r 2.5s ease-in-out infinite;
+}
+@keyframes pulse-r{
+  0%,100%{box-shadow:0 0 30px rgba(255,51,102,.1)}
+  50%    {box-shadow:0 0 60px rgba(255,51,102,.25)}
+}
+.legit-badge{
+  background:linear-gradient(135deg,#001a0e,#00291a);
+  border:1px solid rgba(0,255,157,.3);border-radius:16px;
+  padding:clamp(1.2rem,3vw,2rem);text-align:center;
+  box-shadow:0 0 40px rgba(0,255,157,.08);
+}
+.a-title{font-family:'Share Tech Mono',monospace;font-size:clamp(1rem,3.5vw,1.5rem);letter-spacing:2px;margin-bottom:.5rem}
+.a-prob{font-family:'Share Tech Mono',monospace;font-size:clamp(.85rem,2.5vw,1.1rem)}
+.a-hint{font-size:.8rem;color:#ffffff;margin-top:.3rem}
+
+/* ── Streamlit overrides ── */
+.stButton>button{
+  width:100%;
+  background:linear-gradient(135deg,#0a1d35,#0c2545);
+  color:#00e5ff;border:1px solid rgba(0,229,255,.3);
+  border-radius:10px;font-family:'Share Tech Mono',monospace;
+  font-size:.88rem;letter-spacing:2px;padding:.65rem 1.2rem;transition:all .2s;
+}
+.stButton>button:hover{
+  background:linear-gradient(135deg,#0d2545,#10306a);
+  border-color:#00e5ff;box-shadow:0 0 20px rgba(0,229,255,.2);color:#fff;
+}
+div[data-testid="stDataFrame"]{border:1px solid #1c2a3a;border-radius:10px}
+.stMetric{background:linear-gradient(145deg,#0c1520,#0f1d2e);border:1px solid #1c2a3a;border-radius:12px;padding:.8rem 1rem}
+.stMetric label{color:#ffffff!important;font-size:.7rem!important;letter-spacing:1.5px;text-transform:uppercase}
+.stMetric [data-testid="stMetricValue"]{font-family:'Share Tech Mono',monospace!important;color:#00e5ff!important}
+
+/* ── Global text overrides — force all remaining text white ── */
+p, span, div, label, li, td, th, small, h1, h2, h3, h4, h5, h6 {color:#ffffff}
+.stSelectbox div[data-baseweb] {color:#ffffff!important}
+.stSlider label {color:#ffffff!important}
+.stSlider [data-testid="stWidgetLabel"] {color:#ffffff!important}
+[data-testid="stWidgetLabel"] {color:#ffffff!important}
+[data-testid="stMarkdownContainer"] p {color:#ffffff!important}
+[data-testid="stMarkdownContainer"] li {color:#ffffff!important}
+.stRadio [data-testid="stWidgetLabel"] {color:#ffffff!important}
+.stNumberInput label {color:#ffffff!important}
+section[data-testid="stSidebar"] * {color:#ffffff!important}
+section[data-testid="stSidebar"] .sb-name {color:#00e5ff!important}
+section[data-testid="stSidebar"] .sb-nav-lbl {color:#ffffff!important}
+section[data-testid="stSidebar"] .stRadio label:hover {color:#00e5ff!important}
+
+/* ── Dataset Explorer filter dropdown — black text on white bg ── */
+[data-testid="stSidebar"] ~ * .stSelectbox [data-baseweb="select"] div,
+.stSelectbox [data-baseweb="select"] span,
+.stSelectbox [data-baseweb="select"] [data-testid="stMarkdownContainer"],
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] ul li span,
+[data-baseweb="popover"] [role="option"] span,
+[data-baseweb="popover"] [role="option"] div,
+[data-baseweb="menu"] [role="option"] span,
+[data-baseweb="menu"] [role="option"] div,
+[data-baseweb="select"] div[class*="ValueContainer"] *,
+[data-baseweb="select"] div[class*="singleValue"],
+[data-baseweb="select"] div[class*="placeholder"] {color:#000000!important}
+[data-baseweb="popover"] {background:#ffffff!important}
+[data-baseweb="popover"] * {color:#000000!important}
+[data-baseweb="menu"] {background:#ffffff!important}
+[data-baseweb="menu"] * {color:#000000!important}
+[data-baseweb="menu"] [aria-selected="true"] {background:#e8f4ff!important}
+[data-baseweb="menu"] [role="option"]:hover {background:#f0f0f0!important}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .hero-stats{flex-direction:column;gap:.6rem}
+  .hero-div{display:none}
+  [data-testid="column"]{min-width:100%!important}
+  .cmp-grid{grid-template-columns:1fr}
+}
+@media(min-width:641px) and (max-width:1024px){
+  .cmp-grid{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 """, unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────
-# Dataset
-# ─────────────────────────────────────────────
+# ── Chart helpers ─────────────────────────────────────────────────────────────
+def _fig(w=7, h=3.8):
+    fig, ax = plt.subplots(figsize=(w, h))
+    return fig, ax
+
+def styled(fig):
+    fig.patch.set_facecolor(BG)
+    fig.tight_layout(pad=1.2)
+    return fig
+
+def plot_histogram(df):
+    fig, ax = _fig()
+    for cls, col, lbl in [(0,CYAN,'Legitimate'),(1,RED,'Fraudulent')]:
+        d = df[df['Class']==cls]['Amount']
+        ax.hist(d, bins=55, alpha=0.72, color=col, label=lbl, density=True, edgecolor='none')
+    ax.set_xlabel('Amount ($)'); ax.set_ylabel('Density')
+    ax.legend(); ax.grid(True, alpha=0.3)
+    return styled(fig)
+
+def plot_hourly(df):
+    fig, ax = _fig()
+    hourly = df.groupby(['Hour','Class']).size().reset_index(name='Count')
+    for cls, col, lbl in [(0,CYAN,'Legitimate'),(1,RED,'Fraudulent')]:
+        d = hourly[hourly['Class']==cls]
+        ax.fill_between(d['Hour'], d['Count'], alpha=0.1, color=col)
+        ax.plot(d['Hour'], d['Count'], color=col, marker='o', ms=4,
+                label=lbl, lw=2, markerfacecolor=BG, markeredgewidth=1.5)
+    ax.set_xlabel('Hour of Day'); ax.set_ylabel('Transactions')
+    ax.set_xticks(range(0,24,2)); ax.legend(); ax.grid(True, alpha=0.3)
+    return styled(fig)
+
+def plot_donut(df):
+    fig, ax = _fig(4.5, 3.8)
+    counts = df['Class'].value_counts()
+    sizes  = [counts.get(0,0), counts.get(1,0)]
+    ax.pie(sizes, colors=[CYAN, RED], autopct='%1.1f%%', startangle=90,
+           pctdistance=0.78,
+           wedgeprops=dict(width=0.52, edgecolor=BG, linewidth=3))
+    total = sum(sizes)
+    ax.text(0, 0.08, f'{total:,}', ha='center', va='center',
+            fontfamily='monospace', fontsize=15, color='#ffffff', fontweight='bold')
+    ax.text(0, -0.22, 'TOTAL', ha='center', va='center',
+            fontsize=7, color='#ffffff', fontfamily='monospace')
+    handles = [mpatches.Patch(color=CYAN, label='Legitimate'),
+               mpatches.Patch(color=RED,  label='Fraudulent')]
+    ax.legend(handles=handles, loc='lower center', ncol=2, bbox_to_anchor=(0.5,-0.05), fontsize=8)
+    return styled(fig)
+
+def plot_roc(m1, m2, l1='SMOTE', l2='No-SMOTE'):
+    fig, ax = _fig()
+    for m, col, lbl, ls in [(m1,GREEN,l1,'-'),(m2,CYAN,l2,'--')]:
+        fpr, tpr, _ = roc_curve(m['y_test'], m['y_prob'])
+        ax.plot(fpr, tpr, color=col, lw=2, ls=ls, label=f'{lbl}  AUC={m["roc_auc"]:.3f}')
+        if ls=='-': ax.fill_between(fpr, tpr, alpha=0.07, color=col)
+    ax.plot([0,1],[0,1], color=BORDER, ls=':', lw=1.2, label='Random')
+    ax.set_xlabel('FPR'); ax.set_ylabel('TPR')
+    ax.legend(loc='lower right'); ax.grid(True, alpha=0.3)
+    ax.set_xlim(0,1); ax.set_ylim(0,1.02)
+    return styled(fig)
+
+def plot_smote_bar(before, after):
+    fig, ax = _fig()
+    x  = np.arange(2); w = 0.32
+    bv = [before.get(0,0), before.get(1,0)]
+    av = [after.get(0,0),  after.get(1,0)]
+    b1 = ax.bar(x-w/2, bv, w, label='Before', color=CYAN,  alpha=0.82, zorder=3)
+    b2 = ax.bar(x+w/2, av, w, label='After',  color=GREEN, alpha=0.82, zorder=3)
+    ax.set_xticks(x); ax.set_xticklabels(['Legitimate','Fraudulent'])
+    ax.legend(); ax.grid(True, axis='y', alpha=0.3, zorder=0)
+    for bar, v, c in [(b, vv, cc) for b,vv,cc in list(zip(b1,bv,[CYAN]*2))+list(zip(b2,av,[GREEN]*2))]:
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+50,
+                f'{v:,}', ha='center', fontsize=7.5, color=c)
+    return styled(fig)
+
+def plot_ratio(before, after):
+    fig, ax = _fig(4.5, 3.8)
+    rb = before.get(1,0)/max(sum(before.values()),1)*100
+    ra = after.get(1,0) /max(sum(after.values()), 1)*100
+    bars = ax.bar(['Before\nSMOTE','After\nSMOTE'], [rb,ra],
+                  color=[RED,GREEN], alpha=0.85, width=0.45, zorder=3)
+    ax.set_ylabel('Fraud %'); ax.set_ylim(0, max(ra,rb)*1.7)
+    ax.grid(True, axis='y', alpha=0.3, zorder=0)
+    for bar, v, c in zip(bars,[rb,ra],[RED,GREEN]):
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.4,
+                f'{v:.1f}%', ha='center', fontsize=11, color=c, fontweight='bold')
+    return styled(fig)
+
+def plot_pca(X_res, y_res, X_orig):
+    n = len(X_orig)
+    lmap = {(True,0):'Legitimate',(True,1):'Original Fraud',(False,1):'Synthetic Fraud'}
+    labels = [lmap.get((i<n, cls),'Synthetic Fraud') for i,cls in enumerate(y_res)]
+    pca    = PCA(n_components=2, random_state=42)
+    c      = pca.fit_transform(X_res)
+    df_p   = pd.DataFrame({'PC1':c[:,0],'PC2':c[:,1],'Type':labels})
+    pal    = {'Legitimate':(CYAN,.2),'Original Fraud':(RED,.7),'Synthetic Fraud':(GREEN,.55)}
+    fig, ax = _fig(8, 4.2)
+    handles = []
+    for t in ['Legitimate','Original Fraud','Synthetic Fraud']:
+        sub = df_p[df_p['Type']==t]
+        col, alp = pal[t]
+        ax.scatter(sub['PC1'], sub['PC2'], c=col, s=1.8, alpha=alp, rasterized=True)
+        handles.append(mpatches.Patch(color=col, label=t))
+    ax.legend(handles=handles, fontsize=8)
+    ax.set_xlabel('PC1'); ax.set_ylabel('PC2')
+    ax.grid(True, alpha=0.25)
+    return styled(fig)
+
+def plot_metrics_bar(m_no, m_sm):
+    lbls   = ['Accuracy','F1','ROC-AUC','Recall','Precision']
+    n_vals = [m_no['accuracy'],m_no['f1'],m_no['roc_auc'],
+              m_no['report']['1']['recall'],m_no['report']['1']['precision']]
+    s_vals = [m_sm['accuracy'],m_sm['f1'],m_sm['roc_auc'],
+              m_sm['report']['1']['recall'],m_sm['report']['1']['precision']]
+    x = np.arange(len(lbls)); w = 0.33
+    fig, ax = _fig(8,4)
+    b1 = ax.bar(x-w/2, n_vals, w, label='No SMOTE',   color=CYAN,  alpha=0.82, zorder=3)
+    b2 = ax.bar(x+w/2, s_vals, w, label='With SMOTE', color=GREEN, alpha=0.82, zorder=3)
+    ax.set_xticks(x); ax.set_xticklabels(lbls, fontsize=8)
+    ax.set_ylim(0,1.15); ax.legend(); ax.grid(True, axis='y', alpha=0.3, zorder=0)
+    for bar, v, c in [(b,vv,cc) for b,vv,cc in list(zip(b1,n_vals,[CYAN]*5))+list(zip(b2,s_vals,[GREEN]*5))]:
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.012,
+                f'{v:.2f}', ha='center', fontsize=6.5, color=c)
+    return styled(fig)
+
+def plot_cm(cm, title=''):
+    fig, ax = _fig(4.2, 3.5)
+    cmap = LinearSegmentedColormap.from_list('fs', ['#0a1525','#0046aa','#00e5ff'], N=256)
+    ax.imshow(cm, cmap=cmap, aspect='auto', vmin=0)
+    ax.set_xticks([0,1]); ax.set_yticks([0,1])
+    ax.set_xticklabels(['Pred Legit','Pred Fraud'], fontsize=8)
+    ax.set_yticklabels(['Act Legit','Act Fraud'],   fontsize=8)
+    cmap2 = [[GREEN,RED],[AMBER,GREEN]]
+    for i in range(2):
+        for j in range(2):
+            ax.text(j,i,f'{cm[i,j]:,}',ha='center',va='center',
+                    fontsize=15,color=cmap2[i][j],fontweight='bold',fontfamily='monospace')
+    if title: ax.set_title(title, color='#ffffff', fontsize=9, pad=8)
+    return styled(fig)
+
+def plot_fi(features, importances):
+    idx  = np.argsort(importances)
+    vals = importances[idx]
+    fts  = [features[i] for i in idx]
+    fig, ax = _fig(6,4)
+    colors = [CYAN if v<np.percentile(vals,60) else GREEN for v in vals]
+    bars = ax.barh(fts, vals, color=colors, alpha=0.85, zorder=3)
+    ax.set_xlabel('Importance'); ax.grid(True, axis='x', alpha=0.3, zorder=0)
+    for bar, v in zip(bars, vals):
+        ax.text(v+.001, bar.get_y()+bar.get_height()/2,
+                f'{v:.3f}', va='center', fontsize=7.5, color='#ffffff')
+    return styled(fig)
+
+def plot_pr(metrics):
+    prec, rec, _ = precision_recall_curve(metrics['y_test'], metrics['y_prob'])
+    fig, ax = _fig()
+    ax.plot(rec, prec, color=CYAN, lw=2, zorder=3)
+    ax.fill_between(rec, prec, alpha=0.08, color=CYAN)
+    ax.set_xlabel('Recall'); ax.set_ylabel('Precision')
+    ax.set_xlim(0,1); ax.set_ylim(0,1.05); ax.grid(True, alpha=0.3)
+    return styled(fig)
+
+def plot_pred_bar(prob):
+    fig, ax = _fig(5.5, 3.2)
+    bars = ax.bar(['LEGITIMATE','FRAUDULENT'], prob,
+                  color=[GREEN,RED], alpha=0.85, width=0.4, zorder=3)
+    ax.set_ylim(0,1.22); ax.set_ylabel('Probability')
+    ax.grid(True, axis='y', alpha=0.3, zorder=0)
+    for bar, v, c in zip(bars, prob, [GREEN,RED]):
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.03,
+                f'{v:.1%}', ha='center', fontsize=13, color=c,
+                fontweight='bold', fontfamily='monospace')
+    ax.set_xticklabels(['LEGITIMATE','FRAUDULENT'], fontsize=9, fontfamily='monospace')
+    ax.set_title('Prediction Confidence', color='#ffffff', fontsize=10, pad=8)
+    return styled(fig)
+
+
+# ── Data & training ───────────────────────────────────────────────────────────
 @st.cache_data
-def generate_dataset(n_samples=10000):
+def generate_dataset(n=10000):
     np.random.seed(42)
-    n_fraud = int(n_samples * 0.02)
-    n_legit = n_samples - n_fraud
+    nf = int(n*.02); nl = n-nf
     legit = pd.DataFrame({
-        'Amount': np.random.exponential(scale=80, size=n_legit),
-        'Hour':   np.random.randint(0, 24, n_legit),
-        'V1': np.random.normal(0, 1, n_legit), 'V2': np.random.normal(0, 1, n_legit),
-        'V3': np.random.normal(0, 1, n_legit), 'V4': np.random.normal(0, 1, n_legit),
-        'V5': np.random.normal(0, 1, n_legit), 'V6': np.random.normal(0, 1, n_legit),
-        'V7': np.random.normal(0, 1, n_legit), 'V8': np.random.normal(0, 1, n_legit),
-        'Class': 0
-    })
+        'Amount':np.random.exponential(80,nl),'Hour':np.random.randint(0,24,nl),
+        'V1':np.random.normal(0,1,nl),'V2':np.random.normal(0,1,nl),
+        'V3':np.random.normal(0,1,nl),'V4':np.random.normal(0,1,nl),
+        'V5':np.random.normal(0,1,nl),'V6':np.random.normal(0,1,nl),
+        'V7':np.random.normal(0,1,nl),'V8':np.random.normal(0,1,nl),'Class':0})
     fraud = pd.DataFrame({
-        'Amount': np.random.exponential(scale=200, size=n_fraud),
-        'Hour':   np.random.choice([0,1,2,3,22,23], n_fraud),
-        'V1': np.random.normal(-3, 1.5, n_fraud), 'V2': np.random.normal(2, 1.5, n_fraud),
-        'V3': np.random.normal(-2.5, 1, n_fraud), 'V4': np.random.normal(2.5, 1, n_fraud),
-        'V5': np.random.normal(-1.5, 1, n_fraud), 'V6': np.random.normal(1.5, 1, n_fraud),
-        'V7': np.random.normal(-2, 1, n_fraud),   'V8': np.random.normal(2, 1, n_fraud),
-        'Class': 1
-    })
-    df = pd.concat([legit, fraud], ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
-    df['Amount'] = df['Amount'].clip(lower=0.5, upper=5000)
+        'Amount':np.random.exponential(200,nf),'Hour':np.random.choice([0,1,2,3,22,23],nf),
+        'V1':np.random.normal(-3,1.5,nf),'V2':np.random.normal(2,1.5,nf),
+        'V3':np.random.normal(-2.5,1,nf),'V4':np.random.normal(2.5,1,nf),
+        'V5':np.random.normal(-1.5,1,nf),'V6':np.random.normal(1.5,1,nf),
+        'V7':np.random.normal(-2,1,nf),  'V8':np.random.normal(2,1,nf),'Class':1})
+    df = pd.concat([legit,fraud],ignore_index=True).sample(frac=1,random_state=42).reset_index(drop=True)
+    df['Amount'] = df['Amount'].clip(.5,5000)
     return df
 
-
-FEATURES = ['Amount', 'Hour', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8']
+FEATURES = ['Amount','Hour','V1','V2','V3','V4','V5','V6','V7','V8']
 SMOTE_VARIANTS = {
     "SMOTE (Standard)": SMOTE(random_state=42),
     "Borderline-SMOTE": BorderlineSMOTE(random_state=42),
     "SVM-SMOTE":        SVMSMOTE(random_state=42),
 }
 
-
-def _fit_evaluate(X_train, y_train, X_test, y_test, model_type):
-    if model_type == "Random Forest":
-        clf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, class_weight='balanced')
-    else:
-        clf = LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42)
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    y_prob = clf.predict_proba(X_test)[:, 1]
-    return clf, {
-        "accuracy":  accuracy_score(y_test, y_pred),
-        "f1":        f1_score(y_test, y_pred),
-        "roc_auc":   roc_auc_score(y_test, y_prob),
-        "confusion": confusion_matrix(y_test, y_pred),
-        "report":    classification_report(y_test, y_pred, output_dict=True),
-        "y_test":    y_test,
-        "y_prob":    y_prob,
-        "feature_names": FEATURES,
-        "feature_importance": clf.feature_importances_ if model_type == "Random Forest" else None,
-    }
-
+def _fit(X_tr, y_tr, X_te, y_te, mtype):
+    clf = (RandomForestClassifier(n_estimators=100,max_depth=10,random_state=42,class_weight='balanced')
+           if mtype=="Random Forest"
+           else LogisticRegression(max_iter=1000,class_weight='balanced',random_state=42))
+    clf.fit(X_tr, y_tr)
+    yp = clf.predict(X_te); ypr = clf.predict_proba(X_te)[:,1]
+    return clf, {"accuracy":accuracy_score(y_te,yp),"f1":f1_score(y_te,yp),
+                 "roc_auc":roc_auc_score(y_te,ypr),"confusion":confusion_matrix(y_te,yp),
+                 "report":classification_report(y_te,yp,output_dict=True),
+                 "y_test":y_te,"y_prob":ypr,
+                 "feature_importance":clf.feature_importances_ if mtype=="Random Forest" else None}
 
 @st.cache_resource
-def train_all(model_type, smote_variant):
+def train_all(mtype, smv):
     df = generate_dataset()
-    X = df[FEATURES].values
-    y = df['Class'].values
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=0.2, random_state=42, stratify=y)
-
-    clf_no, metrics_no = _fit_evaluate(X_train, y_train, X_test, y_test, model_type)
-
-    sm = SMOTE_VARIANTS[smote_variant]
-    X_res, y_res = sm.fit_resample(X_train, y_train)
-    clf_sm, metrics_sm = _fit_evaluate(X_res, y_res, X_test, y_test, model_type)
-
-    before = dict(zip(*np.unique(y_train, return_counts=True)))
-    after  = dict(zip(*np.unique(y_res,   return_counts=True)))
-    return scaler, clf_sm, metrics_no, metrics_sm, before, after, X_train, X_res, y_res
+    X  = df[FEATURES].values; y = df['Class'].values
+    sc = StandardScaler(); Xs = sc.fit_transform(X)
+    Xtr,Xte,ytr,yte = train_test_split(Xs,y,test_size=.2,random_state=42,stratify=y)
+    _, m_no = _fit(Xtr,ytr,Xte,yte,mtype)
+    Xr,yr   = SMOTE_VARIANTS[smv].fit_resample(Xtr,ytr)
+    clf_sm, m_sm = _fit(Xr,yr,Xte,yte,mtype)
+    bef = dict(zip(*np.unique(ytr,return_counts=True)))
+    aft = dict(zip(*np.unique(yr, return_counts=True)))
+    return sc, clf_sm, m_no, m_sm, bef, aft, Xtr, Xr, yr
 
 
-# ─────────────────────────────────────────────
-# Sidebar
-# ─────────────────────────────────────────────
+# ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🛡️ Fraud Shield")
+    st.markdown("""
+    <div class="sb-brand">
+        <div class="sb-icon">🛡️</div>
+        <div class="sb-name">FRAUDSHIELD</div>
+        <div class="sb-sub">ML DETECTION SYSTEM v2.0</div>
+    </div>""", unsafe_allow_html=True)
+    st.markdown('<div class="sb-nav-lbl">Navigation</div>', unsafe_allow_html=True)
+    page = st.radio("", [
+        "🏠  Dashboard","🔬  SMOTE Analysis","⚖️  SMOTE vs No-SMOTE",
+        "🔍  Predict Transaction","📊  Model Insights","📂  Dataset Explorer",
+    ], label_visibility="collapsed")
     st.markdown("---")
-    page = st.radio("Navigation", [
-        "🏠 Dashboard",
-        "🔬 SMOTE Analysis",
-        "⚖️ SMOTE vs No-SMOTE",
-        "🔍 Predict Transaction",
-        "📊 Model Insights",
-        "📂 Dataset Explorer",
-    ])
-    st.markdown("---")
-    model_choice = st.selectbox("Classifier", ["Random Forest", "Logistic Regression"])
+    st.markdown('<div class="sb-nav-lbl">Configuration</div>', unsafe_allow_html=True)
+    model_choice = st.selectbox("Classifier", ["Random Forest","Logistic Regression"])
     smote_choice = st.selectbox("SMOTE Variant", list(SMOTE_VARIANTS.keys()))
     st.markdown("---")
-    st.markdown("<small style='color:#6b8cae'>Built with Streamlit · sklearn · imbalanced-learn · Plotly</small>", unsafe_allow_html=True)
+    st.markdown('<div class="sb-footer">📦 streamlit · sklearn<br>🧬 imbalanced-learn<br>📊 matplotlib · pandas</div>',
+                unsafe_allow_html=True)
 
 df = generate_dataset()
-scaler, model, metrics_no, metrics_sm, before_counts, after_counts, X_train_orig, X_res, y_res = train_all(model_choice, smote_choice)
+scaler, model, metrics_no, metrics_sm, before_counts, after_counts, X_orig, X_res, y_res = \
+    train_all(model_choice, smote_choice)
 metrics = metrics_sm
 
+# ── UI helpers ────────────────────────────────────────────────────────────────
+def sec(title):
+    st.markdown(f'<div class="sec-hdr"><span class="sec-txt">{title}</span><div class="sec-line"></div></div>',
+                unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════
-# DASHBOARD
-# ═══════════════════════════════════════════════
-if page == "🏠 Dashboard":
-    st.markdown("""
-    <div class="hero-banner">
-        <h1>🛡️ FRAUD SHIELD</h1>
-        <p>Credit Card Fraud Detection · SMOTE-Balanced ML Pipeline</p>
-    </div>""", unsafe_allow_html=True)
+def mcard(val, lbl, accent='cyan', icon=''):
+    st.markdown(f'<div class="mcard {accent}"><div class="mcard-icon">{icon}</div>'
+                f'<div class="mcard-lbl">{lbl}</div><div class="mcard-val">{val}</div></div>',
+                unsafe_allow_html=True)
 
-    c1, c2, c3, c4 = st.columns(4)
-    for col, lbl, val in zip(
-        [c1,c2,c3,c4],
-        ["Accuracy","ROC-AUC","F1 Score","Fraud Rate"],
-        [f"{metrics['accuracy']:.1%}", f"{metrics['roc_auc']:.3f}",
-         f"{metrics['f1']:.3f}", f"{df['Class'].mean()*100:.1f}%"]
-    ):
-        col.markdown(f'<div class="metric-card"><div class="label">{lbl}</div><div class="value">{val}</div></div>', unsafe_allow_html=True)
+def cpanel(fig):
+    st.markdown('<div class="cpanel">', unsafe_allow_html=True)
+    st.pyplot(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    plt.close('all')
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  🏠  DASHBOARD
+# ═══════════════════════════════════════════════════════════════════════════════
+if "Dashboard" in page:
+    rpt = metrics['report']
+    st.markdown(f"""
+    <div class="hero"><div class="hero-inner">
+      <div class="hero-badge">⬡ REAL-TIME FRAUD INTELLIGENCE</div>
+      <h1>🛡️ FRAUD SHIELD</h1>
+      <p class="hero-sub">{model_choice} · {smote_choice} · SMOTE-Balanced Pipeline</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="hero-stat-val">{metrics['accuracy']:.1%}</div><div class="hero-stat-lbl">Accuracy</div></div>
+        <div class="hero-div"></div>
+        <div class="hero-stat"><div class="hero-stat-val">{metrics['roc_auc']:.3f}</div><div class="hero-stat-lbl">ROC-AUC</div></div>
+        <div class="hero-div"></div>
+        <div class="hero-stat"><div class="hero-stat-val">{metrics['f1']:.3f}</div><div class="hero-stat-lbl">F1 Score</div></div>
+        <div class="hero-div"></div>
+        <div class="hero-stat"><div class="hero-stat-val">{df['Class'].mean()*100:.1f}%</div><div class="hero-stat-lbl">Fraud Rate</div></div>
+      </div>
+    </div></div>""", unsafe_allow_html=True)
+
+    c1,c2,c3,c4 = st.columns(4)
+    with c1: mcard(f"{len(df):,}",                       "Total Transactions",  "cyan",  "💳")
+    with c2: mcard(f"{df['Class'].sum():,}",              "Fraud Cases Detected","red",   "⚠️")
+    with c3: mcard(f"{rpt['1']['recall']:.1%}",           "Fraud Recall",        "green", "🎯")
+    with c4: mcard(f"{rpt['1']['precision']:.1%}",        "Fraud Precision",     "amber", "🔎")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<p class="section-title">Transaction Amount Distribution</p>', unsafe_allow_html=True)
-        fig = px.histogram(df, x='Amount', color='Class',
-                           color_discrete_map={0:'#00d4ff',1:'#ff4444'},
-                           barmode='overlay', nbins=60, opacity=0.75, template='plotly_dark')
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=10,b=10))
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.markdown('<p class="section-title">Transactions by Hour</p>', unsafe_allow_html=True)
-        hourly = df.groupby(['Hour','Class']).size().reset_index(name='Count')
-        fig2 = px.line(hourly, x='Hour', y='Count', color='Class',
-                       color_discrete_map={0:'#00d4ff',1:'#ff4444'}, markers=True, template='plotly_dark')
-        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=10,b=10))
-        st.plotly_chart(fig2, use_container_width=True)
-
-    col3, col4 = st.columns(2)
-    with col3:
-        st.markdown('<p class="section-title">Class Distribution (Original)</p>', unsafe_allow_html=True)
-        counts = df['Class'].value_counts().reset_index()
-        counts.columns = ['Class','Count']
-        counts['Label'] = counts['Class'].map({0:'Legitimate',1:'Fraudulent'})
-        fig3 = px.pie(counts, values='Count', names='Label',
-                      color='Label', color_discrete_map={'Legitimate':'#00d4ff','Fraudulent':'#ff4444'},
-                      hole=0.55, template='plotly_dark')
-        fig3.update_layout(paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=10,b=10))
-        st.plotly_chart(fig3, use_container_width=True)
-    with col4:
-        st.markdown('<p class="section-title">ROC Curve (SMOTE vs No-SMOTE)</p>', unsafe_allow_html=True)
-        fpr,  tpr,  _ = roc_curve(metrics['y_test'],    metrics['y_prob'])
-        fpr2, tpr2, _ = roc_curve(metrics_no['y_test'], metrics_no['y_prob'])
-        fig4 = go.Figure()
-        fig4.add_trace(go.Scatter(x=fpr,  y=tpr,  mode='lines', name=f'SMOTE   AUC={metrics["roc_auc"]:.3f}',    line=dict(color='#00ff88', width=2)))
-        fig4.add_trace(go.Scatter(x=fpr2, y=tpr2, mode='lines', name=f'No-SMOTE AUC={metrics_no["roc_auc"]:.3f}', line=dict(color='#00d4ff', width=2, dash='dot')))
-        fig4.add_trace(go.Scatter(x=[0,1],y=[0,1], mode='lines', name='Random', line=dict(color='#444', dash='dash')))
-        fig4.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
-                           plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=10,b=10),
-                           xaxis_title='FPR', yaxis_title='TPR')
-        st.plotly_chart(fig4, use_container_width=True)
+    c1,c2 = st.columns(2)
+    with c1: sec("Amount Distribution"); cpanel(plot_histogram(df))
+    with c2: sec("Hourly Pattern");      cpanel(plot_hourly(df))
+    c3,c4 = st.columns(2)
+    with c3: sec("Class Balance");       cpanel(plot_donut(df))
+    with c4: sec("ROC Curve Comparison");cpanel(plot_roc(metrics, metrics_no))
 
 
-# ═══════════════════════════════════════════════
-# SMOTE ANALYSIS
-# ═══════════════════════════════════════════════
-elif page == "🔬 SMOTE Analysis":
-    st.markdown('<h2 style="color:#00ff88;font-family:Space Mono">🔬 SMOTE Analysis</h2>', unsafe_allow_html=True)
-
+# ═══════════════════════════════════════════════════════════════════════════════
+#  🔬  SMOTE ANALYSIS
+# ═══════════════════════════════════════════════════════════════════════════════
+elif "SMOTE Analysis" in page:
+    st.markdown('<div class="page-title"><span style="color:#00ff9d">🔬</span> SMOTE ANALYSIS</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="info-box">
-        <strong>What is SMOTE?</strong> Synthetic Minority Over-sampling Technique (SMOTE) generates
-        <em>synthetic</em> fraud samples by interpolating between existing minority-class instances in
-        feature space — it doesn't duplicate rows, it creates brand-new plausible examples.<br><br>
-        <strong>Active variant:</strong> {smote_choice}
+      <strong>Synthetic Minority Over-sampling Technique</strong> — creates synthetic fraud samples
+      by interpolating between existing minority-class instances in feature space. It doesn't
+      duplicate — it <em>manufactures</em> brand-new plausible examples, forcing the model
+      to learn far more robust fraud decision boundaries.<br><br>
+      <strong>Active variant:</strong> {smote_choice}
     </div>""", unsafe_allow_html=True)
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(f'<div class="metric-card"><div class="label">Legit (before)</div><div class="value">{before_counts.get(0,0):,}</div></div>', unsafe_allow_html=True)
-    c2.markdown(f'<div class="metric-card"><div class="label">Fraud (before)</div><div class="value">{before_counts.get(1,0):,}</div></div>', unsafe_allow_html=True)
-    c3.markdown(f'<div class="smote-card"><div class="label">Legit (after)</div><div class="value">{after_counts.get(0,0):,}</div></div>', unsafe_allow_html=True)
-    c4.markdown(f'<div class="smote-card"><div class="label">Fraud (after)</div><div class="value">{after_counts.get(1,0):,}</div></div>', unsafe_allow_html=True)
+    sec("Class Balance — Before vs After SMOTE")
+    c1,c2,c3,c4 = st.columns(4)
+    with c1: mcard(f"{before_counts.get(0,0):,}", "Legit · Before", "cyan",  "")
+    with c2: mcard(f"{before_counts.get(1,0):,}", "Fraud · Before", "red",   "")
+    with c3: st.markdown(f'<div class="smote-c"><div class="smote-c-lbl">Legit · After</div><div class="smote-c-val">{after_counts.get(0,0):,}</div></div>', unsafe_allow_html=True)
+    with c4: st.markdown(f'<div class="smote-c"><div class="smote-c-lbl">Fraud · After</div><div class="smote-c-val">{after_counts.get(1,0):,}</div></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<p class="section-title">Before vs After — Bar Chart</p>', unsafe_allow_html=True)
-        bar_df = pd.DataFrame({
-            'Stage': ['Before','Before','After','After'],
-            'Class': ['Legitimate','Fraudulent','Legitimate','Fraudulent'],
-            'Count': [before_counts.get(0,0), before_counts.get(1,0),
-                      after_counts.get(0,0),  after_counts.get(1,0)],
-        })
-        fig = px.bar(bar_df, x='Stage', y='Count', color='Class',
-                     color_discrete_map={'Legitimate':'#00d4ff','Fraudulent':'#ff4444'},
-                     barmode='group', template='plotly_dark', text='Count')
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=10,b=10))
-        st.plotly_chart(fig, use_container_width=True)
+    c1,c2 = st.columns(2)
+    with c1: sec("Sample Counts");        cpanel(plot_smote_bar(before_counts, after_counts))
+    with c2: sec("Fraud Ratio Shift");    cpanel(plot_ratio(before_counts, after_counts))
 
-    with col2:
-        st.markdown('<p class="section-title">Fraud Class Ratio</p>', unsafe_allow_html=True)
-        rb = before_counts.get(1,0) / sum(before_counts.values()) * 100
-        ra = after_counts.get(1,0)  / sum(after_counts.values())  * 100
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(name='Before SMOTE', x=['Fraud %'], y=[rb],
-                              marker_color='#ff4444', text=[f'{rb:.1f}%'], textposition='outside'))
-        fig2.add_trace(go.Bar(name='After SMOTE',  x=['Fraud %'], y=[ra],
-                              marker_color='#00ff88', text=[f'{ra:.1f}%'], textposition='outside'))
-        fig2.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
-                           plot_bgcolor='rgba(0,0,0,0)', yaxis=dict(range=[0, ra*1.6]),
-                           margin=dict(t=10,b=10))
-        st.plotly_chart(fig2, use_container_width=True)
+    sec("PCA 2D Projection — Original vs Synthetic")
+    st.markdown('<p style="color:#ffffff;font-size:.74rem;margin-bottom:.5rem">🟢 Synthetic Fraud &nbsp; 🔴 Original Fraud &nbsp; 🔵 Legitimate</p>', unsafe_allow_html=True)
+    cpanel(plot_pca(X_res, y_res, X_orig))
 
-    # PCA scatter
-    st.markdown('<p class="section-title">PCA 2D View — Original vs Synthetic Samples</p>', unsafe_allow_html=True)
-    st.caption("🟢 Synthetic fraud (SMOTE-generated)  🔴 Original fraud  🔵 Legitimate")
-
-    n_orig_train = len(X_train_orig)
-    n_synth      = len(X_res) - n_orig_train
-    y_train_orig_labels = np.where(
-        np.concatenate([
-            np.zeros(int((1-0.02)*8000)),
-            np.ones(int(0.02*8000))
-        ])[:n_orig_train] == 0, 0, 1
-    )
-    # simpler: label by y_res for original part
-    label_arr = []
-    for i, cls in enumerate(y_res):
-        if i < n_orig_train:
-            label_arr.append('Legitimate' if cls == 0 else 'Original Fraud')
-        else:
-            label_arr.append('Synthetic Fraud')
-
-    pca = PCA(n_components=2, random_state=42)
-    coords = pca.fit_transform(X_res)
-    pca_df = pd.DataFrame({'PC1': coords[:,0], 'PC2': coords[:,1], 'Type': label_arr})
-    color_map = {'Legitimate':'#00d4ff88','Original Fraud':'#ff4444','Synthetic Fraud':'#00ff88'}
-    fig3 = px.scatter(pca_df, x='PC1', y='PC2', color='Type', color_discrete_map=color_map,
-                      opacity=0.5, template='plotly_dark',
-                      category_orders={'Type':['Legitimate','Original Fraud','Synthetic Fraud']})
-    fig3.update_traces(marker=dict(size=3))
-    fig3.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=10,b=10))
-    st.plotly_chart(fig3, use_container_width=True)
-
-    # Variant cards
-    st.markdown('<p class="section-title">SMOTE Variant Guide</p>', unsafe_allow_html=True)
+    sec("SMOTE Variant Guide")
     descs = [
-        ("SMOTE (Standard)", "#00d4ff",
-         "Interpolates between a minority sample and one of its k nearest neighbours. Works well on most imbalanced datasets."),
-        ("Borderline-SMOTE", "#ffaa00",
-         "Over-samples only borderline minority instances near the decision boundary — where the classifier struggles most."),
-        ("SVM-SMOTE", "#aa00ff",
-         "Uses an SVM to identify support vectors in the minority class and generates samples along the SVM margin for complex boundaries."),
+        ("SMOTE (Standard)", CYAN,   "Interpolates between a minority sample and one of its k nearest neighbours. Best general-purpose choice."),
+        ("Borderline-SMOTE", AMBER,  "Focuses synthesis only on minority samples near the decision boundary — hardest classification zone."),
+        ("SVM-SMOTE",        PURPLE, "Uses SVMs to detect high-risk boundary regions and generates samples aligned with the SVM margin."),
     ]
-    cols = st.columns(3)
-    for col, (name, color, desc) in zip(cols, descs):
-        active_border = f"2px solid {color}" if name == smote_choice else "1px solid #1e3a5f"
-        col.markdown(f"""
-        <div style="background:#111827;border:{active_border};border-radius:10px;padding:1rem;min-height:150px">
-            <div style="color:{color};font-family:Space Mono;font-size:0.8rem;font-weight:700">{name}</div>
-            <div style="color:#a0b4c8;font-size:0.82rem;margin-top:0.5rem">{desc}</div>
-        </div>""", unsafe_allow_html=True)
+    st.markdown('<div class="var-grid">', unsafe_allow_html=True)
+    for name, col, desc in descs:
+        border = f"2px solid {col}" if name==smote_choice else f"1px solid {BORDER}"
+        active = "▶ " if name==smote_choice else ""
+        st.markdown(f'<div class="var-card" style="border:{border}"><div class="var-name" style="color:{col}">{active}{name}</div><div class="var-desc">{desc}</div></div>',
+                    unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════
-# SMOTE vs NO-SMOTE
-# ═══════════════════════════════════════════════
-elif page == "⚖️ SMOTE vs No-SMOTE":
-    st.markdown('<h2 style="color:#00d4ff;font-family:Space Mono">⚖️ SMOTE vs No-SMOTE Comparison</h2>', unsafe_allow_html=True)
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ⚖️  SMOTE vs NO-SMOTE
+# ═══════════════════════════════════════════════════════════════════════════════
+elif "No-SMOTE" in page:
+    st.markdown('<div class="page-title"><span style="color:#00e5ff">⚖️</span> SMOTE vs NO-SMOTE COMPARISON</div>', unsafe_allow_html=True)
 
-    metric_pairs = [
-        ("F1 Score",       metrics_no['f1'],                    metrics_sm['f1']),
-        ("ROC-AUC",        metrics_no['roc_auc'],               metrics_sm['roc_auc']),
-        ("Fraud Recall",   metrics_no['report']['1']['recall'], metrics_sm['report']['1']['recall']),
+    pairs = [
+        ("F1 Score",        "📊", metrics_no['f1'],                     metrics_sm['f1']),
+        ("ROC-AUC",         "📈", metrics_no['roc_auc'],                metrics_sm['roc_auc']),
+        ("Fraud Recall",    "🎯", metrics_no['report']['1']['recall'],  metrics_sm['report']['1']['recall']),
+        ("Fraud Precision", "🔎", metrics_no['report']['1']['precision'],metrics_sm['report']['1']['precision']),
     ]
-    cols = st.columns(3)
-    for col, (lbl, no_val, sm_val) in zip(cols, metric_pairs):
-        better = sm_val >= no_val
-        col.markdown(f"""
-        <div style="background:#111827;border:1px solid #1e3a5f;border-radius:10px;padding:1rem;text-align:center">
-            <div style="color:#6b8cae;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px">{lbl}</div>
-            <div style="display:flex;justify-content:space-around;margin-top:0.8rem">
-                <div>
-                    <div style="color:#888;font-size:0.7rem">No SMOTE</div>
-                    <div style="color:#00d4ff;font-size:1.4rem;font-family:Space Mono">{no_val:.3f}</div>
-                </div>
-                <div style="color:#555;font-size:1.4rem;padding-top:0.3rem">→</div>
-                <div>
-                    <div style="color:#888;font-size:0.7rem">With SMOTE</div>
-                    <div style="color:{'#00ff88' if better else '#ff6666'};font-size:1.4rem;font-family:Space Mono">{sm_val:.3f}</div>
-                </div>
-            </div>
+    st.markdown('<div class="cmp-grid">', unsafe_allow_html=True)
+    for lbl, icon, nv, sv in pairs:
+        better = sv>=nv; d = sv-nv; sign="▲" if d>=0 else "▼"; dc=GREEN if d>=0 else RED
+        st.markdown(f"""
+        <div class="cmp-card">
+          <div class="cmp-lbl">{icon} {lbl}</div>
+          <div class="cmp-row">
+            <div><div class="cmp-sublbl">No SMOTE</div>
+                 <div class="cmp-val" style="color:{CYAN}">{nv:.3f}</div></div>
+            <div class="cmp-arrow">→</div>
+            <div><div class="cmp-sublbl">With SMOTE</div>
+                 <div class="cmp-val" style="color:{'#00ff9d' if better else RED}">{sv:.3f}</div></div>
+          </div>
+          <div class="cmp-delta" style="color:{dc}">{sign} {abs(d):.3f}</div>
         </div>""", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
+    c1,c2 = st.columns(2)
+    with c1: sec("All Metrics Side-by-Side"); cpanel(plot_metrics_bar(metrics_no, metrics_sm))
+    with c2: sec("ROC Curve Overlay");        cpanel(plot_roc(metrics_sm, metrics_no, 'With SMOTE','No SMOTE'))
 
-    with col1:
-        st.markdown('<p class="section-title">All Metrics — Grouped Bar</p>', unsafe_allow_html=True)
-        mdf = pd.DataFrame({
-            'Metric':     ['Accuracy','F1','ROC-AUC','Fraud Recall','Fraud Precision'],
-            'No SMOTE':   [metrics_no['accuracy'], metrics_no['f1'], metrics_no['roc_auc'],
-                           metrics_no['report']['1']['recall'], metrics_no['report']['1']['precision']],
-            'With SMOTE': [metrics_sm['accuracy'], metrics_sm['f1'], metrics_sm['roc_auc'],
-                           metrics_sm['report']['1']['recall'], metrics_sm['report']['1']['precision']],
-        }).melt(id_vars='Metric', var_name='Method', value_name='Score')
-        fig = px.bar(mdf, x='Metric', y='Score', color='Method',
-                     color_discrete_map={'No SMOTE':'#00d4ff','With SMOTE':'#00ff88'},
-                     barmode='group', template='plotly_dark', text_auto='.3f')
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                          yaxis=dict(range=[0,1.05]), margin=dict(t=10,b=10))
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        st.markdown('<p class="section-title">ROC Curve Overlay</p>', unsafe_allow_html=True)
-        fpr_no, tpr_no, _ = roc_curve(metrics_no['y_test'], metrics_no['y_prob'])
-        fpr_sm, tpr_sm, _ = roc_curve(metrics_sm['y_test'], metrics_sm['y_prob'])
-        fig2 = go.Figure()
-        fig2.add_trace(go.Scatter(x=fpr_no, y=tpr_no, mode='lines',
-                                  name=f'No SMOTE  AUC={metrics_no["roc_auc"]:.3f}',
-                                  line=dict(color='#00d4ff', width=2, dash='dot')))
-        fig2.add_trace(go.Scatter(x=fpr_sm, y=tpr_sm, mode='lines',
-                                  name=f'With SMOTE AUC={metrics_sm["roc_auc"]:.3f}',
-                                  line=dict(color='#00ff88', width=2)))
-        fig2.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', name='Random',
-                                  line=dict(color='#444', dash='dash')))
-        fig2.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
-                           plot_bgcolor='rgba(0,0,0,0)', xaxis_title='FPR', yaxis_title='TPR')
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # Confusion matrices side by side
-    st.markdown('<p class="section-title">Confusion Matrices</p>', unsafe_allow_html=True)
-    col3, col4 = st.columns(2)
-    for col, cm, title in [(col3, metrics_no['confusion'], "No SMOTE"), (col4, metrics_sm['confusion'], "With SMOTE")]:
-        with col:
-            st.caption(title)
-            fig_cm = px.imshow(cm, text_auto=True, color_continuous_scale='Blues',
-                               labels=dict(x="Predicted", y="Actual"),
-                               x=['Legit','Fraud'], y=['Legit','Fraud'], template='plotly_dark')
-            fig_cm.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_cm, use_container_width=True)
+    sec("Confusion Matrices")
+    c3,c4 = st.columns(2)
+    with c3: cpanel(plot_cm(metrics_no['confusion'], 'No SMOTE'))
+    with c4: cpanel(plot_cm(metrics_sm['confusion'], 'With SMOTE'))
 
 
-# ═══════════════════════════════════════════════
-# PREDICT
-# ═══════════════════════════════════════════════
-elif page == "🔍 Predict Transaction":
-    st.markdown('<h2 style="color:#00d4ff;font-family:Space Mono">🔍 Predict Transaction</h2>', unsafe_allow_html=True)
-    st.markdown(f"Model: **{model_choice}** trained with **{smote_choice}**")
+# ═══════════════════════════════════════════════════════════════════════════════
+#  🔍  PREDICT TRANSACTION
+# ═══════════════════════════════════════════════════════════════════════════════
+elif "Predict" in page:
+    st.markdown('<div class="page-title"><span style="color:#00e5ff">🔍</span> PREDICT TRANSACTION</div>', unsafe_allow_html=True)
+    st.markdown(f'<p style="color:#ffffff;font-size:.8rem;margin-bottom:1rem">Model: <span style="color:{CYAN}">{model_choice}</span> &nbsp;·&nbsp; SMOTE: <span style="color:{GREEN}">{smote_choice}</span></p>', unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    st.markdown('<div class="pred-wrap">', unsafe_allow_html=True)
+    c1,c2,c3 = st.columns(3)
+    with c1:
+        st.markdown(f'<p style="color:{CYAN};font-family:\'Share Tech Mono\',monospace;font-size:.72rem;letter-spacing:2px;margin-bottom:.4rem">TRANSACTION</p>', unsafe_allow_html=True)
         amount = st.number_input("Amount ($)", min_value=0.01, max_value=5000.0, value=150.0, step=0.01)
-        hour   = st.slider("Transaction Hour (0-23)", 0, 23, 14)
+        hour   = st.slider("Hour", 0, 23, 14)
         v1     = st.slider("V1", -5.0, 5.0, 0.0, 0.01)
-    with col2:
+    with c2:
+        st.markdown(f'<p style="color:{CYAN};font-family:\'Share Tech Mono\',monospace;font-size:.72rem;letter-spacing:2px;margin-bottom:.4rem">VECTORS A</p>', unsafe_allow_html=True)
         v2 = st.slider("V2", -5.0, 5.0, 0.0, 0.01)
         v3 = st.slider("V3", -5.0, 5.0, 0.0, 0.01)
         v4 = st.slider("V4", -5.0, 5.0, 0.0, 0.01)
-    with col3:
+    with c3:
+        st.markdown(f'<p style="color:{CYAN};font-family:\'Share Tech Mono\',monospace;font-size:.72rem;letter-spacing:2px;margin-bottom:.4rem">VECTORS B</p>', unsafe_allow_html=True)
         v5 = st.slider("V5", -5.0, 5.0, 0.0, 0.01)
         v6 = st.slider("V6", -5.0, 5.0, 0.0, 0.01)
         v7 = st.slider("V7", -5.0, 5.0, 0.0, 0.01)
         v8 = st.slider("V8", -5.0, 5.0, 0.0, 0.01)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("🔎 Analyze Transaction", use_container_width=True):
-        inp  = scaler.transform(np.array([[amount, hour, v1, v2, v3, v4, v5, v6, v7, v8]]))
+    if st.button("⬡  ANALYZE TRANSACTION", use_container_width=True):
+        inp  = scaler.transform(np.array([[amount,hour,v1,v2,v3,v4,v5,v6,v7,v8]]))
         pred = model.predict(inp)[0]
         prob = model.predict_proba(inp)[0]
-        st.markdown("---")
-        if pred == 1:
-            st.markdown(f'<div class="fraud-alert"><h2>⚠️ FRAUDULENT TRANSACTION DETECTED</h2><p style="color:#ffaaaa;margin-top:0.5rem">Fraud Probability: <strong>{prob[1]:.1%}</strong></p><p style="color:#ff8888;font-size:0.85rem">Recommend: Block & alert cardholder immediately.</p></div>', unsafe_allow_html=True)
+        if pred==1:
+            st.markdown(f"""
+            <div class="fraud-alert">
+              <div class="a-title" style="color:#ff3366">⚠ FRAUDULENT TRANSACTION DETECTED</div>
+              <div class="a-prob" style="color:#ffffff">Fraud Probability: {prob[1]:.1%}</div>
+              <div class="a-hint">Recommended: Block &amp; alert cardholder immediately</div>
+            </div>""", unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="legit-badge"><h2>✅ LEGITIMATE TRANSACTION</h2><p style="color:#aaffcc;margin-top:0.5rem">Legit Probability: <strong>{prob[0]:.1%}</strong></p><p style="color:#88ffbb;font-size:0.85rem">No anomalies detected.</p></div>', unsafe_allow_html=True)
-
+            st.markdown(f"""
+            <div class="legit-badge">
+              <div class="a-title" style="color:#00ff9d">✓ LEGITIMATE TRANSACTION</div>
+              <div class="a-prob" style="color:#ffffff">Legitimate Probability: {prob[0]:.1%}</div>
+              <div class="a-hint">No anomalies detected — transaction approved</div>
+            </div>""", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
-        fig = go.Figure(go.Bar(x=['Legitimate','Fraudulent'], y=[prob[0], prob[1]],
-                               marker_color=['#00d4ff','#ff4444'],
-                               text=[f'{p:.1%}' for p in prob], textposition='outside'))
-        fig.update_layout(title='Prediction Confidence', template='plotly_dark',
-                          paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                          yaxis=dict(range=[0,1.15]))
-        st.plotly_chart(fig, use_container_width=True)
+        sec("Prediction Confidence")
+        cpanel(plot_pred_bar(prob))
 
 
-# ═══════════════════════════════════════════════
-# MODEL INSIGHTS
-# ═══════════════════════════════════════════════
-elif page == "📊 Model Insights":
-    st.markdown('<h2 style="color:#00d4ff;font-family:Space Mono">📊 Model Insights</h2>', unsafe_allow_html=True)
-    st.caption(f"**{model_choice}** · **{smote_choice}**")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<p class="section-title">Confusion Matrix</p>', unsafe_allow_html=True)
-        fig = px.imshow(metrics['confusion'], text_auto=True, color_continuous_scale='Blues',
-                        labels=dict(x="Predicted", y="Actual"),
-                        x=['Legit','Fraud'], y=['Legit','Fraud'], template='plotly_dark')
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        if model_choice == "Random Forest":
-            st.markdown('<p class="section-title">Feature Importances</p>', unsafe_allow_html=True)
-            fi_df = pd.DataFrame({'Feature': FEATURES, 'Importance': metrics['feature_importance']}).sort_values('Importance', ascending=True)
-            fig2 = px.bar(fi_df, x='Importance', y='Feature', orientation='h',
-                          color='Importance', color_continuous_scale='Blues', template='plotly_dark')
-            fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig2, use_container_width=True)
-        else:
-            st.markdown('<p class="section-title">Precision-Recall Curve</p>', unsafe_allow_html=True)
-            prec, rec, _ = precision_recall_curve(metrics['y_test'], metrics['y_prob'])
-            fig2 = go.Figure()
-            fig2.add_trace(go.Scatter(x=rec, y=prec, mode='lines', line=dict(color='#00d4ff', width=2)))
-            fig2.update_layout(xaxis_title='Recall', yaxis_title='Precision', template='plotly_dark',
-                               paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig2, use_container_width=True)
-
-    st.markdown('<p class="section-title">Classification Report</p>', unsafe_allow_html=True)
+# ═══════════════════════════════════════════════════════════════════════════════
+#  📊  MODEL INSIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+elif "Insights" in page:
+    st.markdown('<div class="page-title"><span style="color:#00e5ff">📊</span> MODEL INSIGHTS</div>', unsafe_allow_html=True)
+    st.markdown(f'<p style="color:#ffffff;font-size:.8rem;margin-bottom:1rem">{model_choice} &nbsp;·&nbsp; {smote_choice}</p>', unsafe_allow_html=True)
     rpt = metrics['report']
+    c1,c2,c3,c4 = st.columns(4)
+    with c1: mcard(f"{metrics['accuracy']:.1%}",       "Accuracy",        "cyan")
+    with c2: mcard(f"{metrics['roc_auc']:.3f}",        "ROC-AUC",         "green")
+    with c3: mcard(f"{rpt['1']['recall']:.1%}",        "Fraud Recall",    "amber")
+    with c4: mcard(f"{rpt['1']['precision']:.1%}",     "Fraud Precision", "cyan")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1,c2 = st.columns(2)
+    with c1:
+        sec("Confusion Matrix")
+        cpanel(plot_cm(metrics['confusion']))
+    with c2:
+        if model_choice=="Random Forest":
+            sec("Feature Importance Ranking")
+            cpanel(plot_fi(FEATURES, metrics['feature_importance']))
+        else:
+            sec("Precision-Recall Curve")
+            cpanel(plot_pr(metrics))
+
+    sec("Classification Report")
     rpt_df = pd.DataFrame({
-        'Class':     ['Legitimate (0)', 'Fraudulent (1)', 'Macro Avg'],
-        'Precision': [rpt['0']['precision'], rpt['1']['precision'], rpt['macro avg']['precision']],
-        'Recall':    [rpt['0']['recall'],    rpt['1']['recall'],    rpt['macro avg']['recall']],
-        'F1-Score':  [rpt['0']['f1-score'],  rpt['1']['f1-score'],  rpt['macro avg']['f1-score']],
-        'Support':   [int(rpt['0']['support']), int(rpt['1']['support']),
-                      int(rpt['0']['support'])+int(rpt['1']['support'])],
+        'Class':    ['Legitimate (0)','Fraudulent (1)','Macro Avg'],
+        'Precision':[rpt['0']['precision'],rpt['1']['precision'],rpt['macro avg']['precision']],
+        'Recall':   [rpt['0']['recall'],   rpt['1']['recall'],   rpt['macro avg']['recall']],
+        'F1-Score': [rpt['0']['f1-score'], rpt['1']['f1-score'], rpt['macro avg']['f1-score']],
+        'Support':  [int(rpt['0']['support']),int(rpt['1']['support']),
+                     int(rpt['0']['support'])+int(rpt['1']['support'])],
     })
-    st.dataframe(rpt_df.style.format({'Precision':'{:.4f}','Recall':'{:.4f}','F1-Score':'{:.4f}'})
-                 .background_gradient(cmap='Blues', subset=['Precision','Recall','F1-Score']),
+    st.dataframe(
+        rpt_df.style.format({'Precision':'{:.4f}','Recall':'{:.4f}','F1-Score':'{:.4f}'})
+                    .background_gradient(cmap='Blues', subset=['Precision','Recall','F1-Score'])
+                    .set_properties(**{'text-align':'center'}),
+        use_container_width=True, hide_index=True
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  📂  DATASET EXPLORER
+# ═══════════════════════════════════════════════════════════════════════════════
+elif "Dataset" in page:
+    st.markdown('<div class="page-title"><span style="color:#00e5ff">📂</span> DATASET EXPLORER</div>', unsafe_allow_html=True)
+    c1,c2,c3,c4 = st.columns(4)
+    with c1: mcard(f"{len(df):,}",           "Total Records",   "cyan",  "💾")
+    with c2: mcard(f"{df['Class'].sum():,}",  "Fraud Cases",     "red",   "🚨")
+    with c3: mcard(f"{len(df.columns)-1}",    "Features",        "green", "🔢")
+    with c4: mcard(f"{df['Class'].mean():.2%}","Imbalance Ratio","amber", "⚖️")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    sec("Data Browser")
+    fc1, fc2 = st.columns([1,2])
+    with fc1:
+        n  = st.slider("Rows", 5, 100, 20)
+        fc = st.selectbox("Filter", ["All","Legitimate (0)","Fraudulent (1)"])
+    dsp = df.copy()
+    if fc=="Legitimate (0)": dsp = df[df['Class']==0]
+    if fc=="Fraudulent (1)": dsp = df[df['Class']==1]
+    st.dataframe(
+        dsp.head(n).style
+           .applymap(lambda x:'background-color:#1a0010;color:#ff3366' if x==1 else '', subset=['Class'])
+           .format({'Amount':'{:.2f}','V1':'{:.3f}','V2':'{:.3f}','V3':'{:.3f}',
+                    'V4':'{:.3f}','V5':'{:.3f}','V6':'{:.3f}','V7':'{:.3f}','V8':'{:.3f}'}),
+        use_container_width=True, hide_index=True
+    )
+    sec("Statistical Summary")
+    st.dataframe(df.describe().round(4).style.background_gradient(cmap='Blues'),
                  use_container_width=True)
-
-
-# ═══════════════════════════════════════════════
-# DATASET EXPLORER
-# ═══════════════════════════════════════════════
-elif page == "📂 Dataset Explorer":
-    st.markdown('<h2 style="color:#00d4ff;font-family:Space Mono">📂 Dataset Explorer</h2>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Records", f"{len(df):,}")
-    c2.metric("Fraud Cases",   f"{df['Class'].sum():,}")
-    c3.metric("Features",      f"{len(df.columns)-1}")
-
-    st.markdown('<p class="section-title">Sample Data</p>', unsafe_allow_html=True)
-    n  = st.slider("Rows to display", 5, 100, 20)
-    fc = st.selectbox("Filter by class", ["All","Legitimate (0)","Fraudulent (1)"])
-    display_df = df.copy()
-    if fc == "Legitimate (0)": display_df = df[df['Class']==0]
-    if fc == "Fraudulent (1)": display_df = df[df['Class']==1]
-    st.dataframe(display_df.head(n).style.applymap(
-        lambda x: 'background-color:#3d0000;color:#ff6666' if x==1 else '', subset=['Class']
-    ), use_container_width=True)
-
-    st.markdown('<p class="section-title">Statistical Summary</p>', unsafe_allow_html=True)
-    st.dataframe(df.describe().round(3), use_container_width=True)
