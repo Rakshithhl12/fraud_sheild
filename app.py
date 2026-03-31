@@ -288,25 +288,22 @@ section[data-testid="stSidebar"] .sb-name {color:#00e5ff!important}
 section[data-testid="stSidebar"] .sb-nav-lbl {color:#ffffff!important}
 section[data-testid="stSidebar"] .stRadio label:hover {color:#00e5ff!important}
 
-/* ── Dataset Explorer filter dropdown — black text on white bg ── */
-[data-testid="stSidebar"] ~ * .stSelectbox [data-baseweb="select"] div,
-.stSelectbox [data-baseweb="select"] span,
-.stSelectbox [data-baseweb="select"] [data-testid="stMarkdownContainer"],
-[data-baseweb="popover"] li,
-[data-baseweb="popover"] ul li span,
-[data-baseweb="popover"] [role="option"] span,
-[data-baseweb="popover"] [role="option"] div,
-[data-baseweb="menu"] [role="option"] span,
-[data-baseweb="menu"] [role="option"] div,
+/* ── All selectbox dropdowns (sidebar + main) — black text on white bg ── */
 [data-baseweb="select"] div[class*="ValueContainer"] *,
 [data-baseweb="select"] div[class*="singleValue"],
-[data-baseweb="select"] div[class*="placeholder"] {color:#000000!important}
+[data-baseweb="select"] div[class*="placeholder"],
+.stSelectbox [data-baseweb="select"] span,
+.stSelectbox [data-baseweb="select"] div {color:#000000!important}
 [data-baseweb="popover"] {background:#ffffff!important}
 [data-baseweb="popover"] * {color:#000000!important}
 [data-baseweb="menu"] {background:#ffffff!important}
 [data-baseweb="menu"] * {color:#000000!important}
 [data-baseweb="menu"] [aria-selected="true"] {background:#e8f4ff!important}
 [data-baseweb="menu"] [role="option"]:hover {background:#f0f0f0!important}
+section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="ValueContainer"] *,
+section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="singleValue"],
+section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="placeholder"],
+section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!important}
 
 /* ── Responsive ── */
 @media(max-width:640px){
