@@ -311,9 +311,43 @@ section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!imp
   .hero-div{display:none}
   [data-testid="column"]{min-width:100%!important}
   .cmp-grid{grid-template-columns:1fr}
+  /* Dropdown black text — mobile */
+  [data-baseweb="select"] div[class*="ValueContainer"] *,
+  [data-baseweb="select"] div[class*="singleValue"],
+  [data-baseweb="select"] div[class*="placeholder"],
+  .stSelectbox [data-baseweb="select"] span,
+  .stSelectbox [data-baseweb="select"] div {color:#000000!important}
+  [data-baseweb="popover"] {background:#ffffff!important}
+  [data-baseweb="popover"] * {color:#000000!important}
+  [data-baseweb="menu"] {background:#ffffff!important}
+  [data-baseweb="menu"] * {color:#000000!important}
+  [data-baseweb="menu"] [aria-selected="true"] {background:#e8f4ff!important}
+  [data-baseweb="menu"] [role="option"]:hover,
+  [data-baseweb="menu"] [role="option"]:active {background:#f0f0f0!important}
+  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="ValueContainer"] *,
+  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="singleValue"],
+  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="placeholder"],
+  section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!important}
 }
 @media(min-width:641px) and (max-width:1024px){
   .cmp-grid{grid-template-columns:repeat(2,1fr)}
+  /* Dropdown black text — tablet */
+  [data-baseweb="select"] div[class*="ValueContainer"] *,
+  [data-baseweb="select"] div[class*="singleValue"],
+  [data-baseweb="select"] div[class*="placeholder"],
+  .stSelectbox [data-baseweb="select"] span,
+  .stSelectbox [data-baseweb="select"] div {color:#000000!important}
+  [data-baseweb="popover"] {background:#ffffff!important}
+  [data-baseweb="popover"] * {color:#000000!important}
+  [data-baseweb="menu"] {background:#ffffff!important}
+  [data-baseweb="menu"] * {color:#000000!important}
+  [data-baseweb="menu"] [aria-selected="true"] {background:#e8f4ff!important}
+  [data-baseweb="menu"] [role="option"]:hover,
+  [data-baseweb="menu"] [role="option"]:active {background:#f0f0f0!important}
+  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="ValueContainer"] *,
+  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="singleValue"],
+  section[data-testid="stSidebar"] [data-baseweb="select"] div[class*="placeholder"],
+  section[data-testid="stSidebar"] [data-baseweb="select"] span {color:#000000!important}
 }
 </style>
 """, unsafe_allow_html=True)
