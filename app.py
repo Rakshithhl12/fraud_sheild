@@ -849,7 +849,7 @@ elif "Dataset" in page:
     if fc=="Fraudulent (1)": dsp = df[df['Class']==1]
     st.dataframe(
         dsp.head(n).style
-           .applymap(lambda x:'background-color:#1a0010;color:#ff3366' if x==1 else '', subset=['Class'])
+           .map(lambda x:'background-color:#1a0010;color:#ff3366' if x==1 else '', subset=['Class'])
            .format({'Amount':'{:.2f}','V1':'{:.3f}','V2':'{:.3f}','V3':'{:.3f}',
                     'V4':'{:.3f}','V5':'{:.3f}','V6':'{:.3f}','V7':'{:.3f}','V8':'{:.3f}'}),
         use_container_width=True, hide_index=True
